@@ -1,5 +1,7 @@
 # JPush Library for .NET
 
+修改为依赖 .net framework 4.0
+
 [![NuGet](https://img.shields.io/badge/NuGet-v1.1.0-blue.svg)](https://preview.nuget.org/packages/Jiguang.JPush/)
 
 由[极光](https://www.jiguang.cn/)官方支持的 JPush .NET API Client。
