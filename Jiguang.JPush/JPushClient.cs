@@ -15,7 +15,11 @@ namespace Jiguang.JPush
         public ScheduleClient Schedule;
         private ReportClient report;
 
-        public ReportClient Report { get => report; set => report = value; }
+        public ReportClient Report
+        {
+            get { return report; }
+            set { report = value; }
+        }
 
         public static readonly HttpClient HttpClient;
 
@@ -41,80 +45,73 @@ namespace Jiguang.JPush
             Schedule = new ScheduleClient();
         }
 
-        public async Task<HttpResponse> SendPushAsync(string jsonBody)
+        public HttpResponse SendPushAsync(string jsonBody)
         {
             if (string.IsNullOrEmpty(jsonBody))
                 throw new ArgumentNullException(nameof(jsonBody));
 
             HttpContent httpContent = new StringContent(jsonBody, Encoding.UTF8);
-            HttpResponseMessage msg = await HttpClient.PostAsync(BASE_URL, httpContent).ConfigureAwait(false);
-            var content = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var msgTask = HttpClient.PostAsync(BASE_URL, httpContent);
+            msgTask.Wait();
+            var msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            var content = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, content);
         }
 
         /// <summary>
         /// <see cref="SendPush(PushPayload)"/>
+        /// 进行消息推送。
+        /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push/#_1"/>
         /// </summary>
-        public async Task<HttpResponse> SendPushAsync(PushPayload payload)
+        /// <param name="payload"> 推送对象。<see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push/#_7"/> </param>
+        public HttpResponse SendPush(PushPayload payload)
         {
             if (payload == null)
                 throw new ArgumentNullException(nameof(payload));
 
             string body = payload.ToString();
-            return await SendPushAsync(body);
+            return SendPushAsync(body);
         }
 
-        /// <summary>
-        /// 进行消息推送。
-        /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push/#_1"/>
-        /// </summary>
-        /// <param name="pushPayload"> 推送对象。<see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push/#_7"/> </param>
-        public HttpResponse SendPush(PushPayload pushPayload)
-        {
-            Task<HttpResponse> task = Task.Run(() => SendPushAsync(pushPayload));
-            task.Wait();
-            return task.Result;
-        }
-
-        public async Task<HttpResponse> IsPushValidAsync(string jsonBody)
+        public HttpResponse IsPushValid(string jsonBody)
         {
             if (string.IsNullOrEmpty(jsonBody))
                 throw new ArgumentNullException(nameof(jsonBody));
 
             HttpContent httpContent = new StringContent(jsonBody, Encoding.UTF8);
             var url = BASE_URL + "/validate";
-            HttpResponseMessage msg = await HttpClient.PostAsync(url, httpContent).ConfigureAwait(false);
-            var content = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var msgTask = HttpClient.PostAsync(url, httpContent);
+            msgTask.Wait();
+            var msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            var content = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, content);
         }
 
         /// <summary>
         /// <see cref="IsPushValid(PushPayload)"/>
+        /// 校验推送能否成功。与推送 API 的区别在于：不会实际向用户发送任何消息。 其他字段说明和推送 API 完全相同。
         /// </summary>
-        public async Task<HttpResponse> IsPushValidAsync(PushPayload payload)
+        /// <param name="payload"> 推送对象。<see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push/#_7"/> </param>
+        public HttpResponse IsPushValid(PushPayload payload)
         {
             if (payload == null)
                 throw new ArgumentNullException(nameof(payload));
 
             var body = payload.ToString();
-            return await IsPushValidAsync(body);
-        }
-
-        /// <summary>
-        /// 校验推送能否成功。与推送 API 的区别在于：不会实际向用户发送任何消息。 其他字段说明和推送 API 完全相同。
-        /// </summary>
-        /// <param name="pushPayload"> 推送对象。<see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push/#_7"/> </param>
-        public HttpResponse IsPushValid(PushPayload pushPayload)
-        {
-            Task<HttpResponse> task = Task.Run(() => IsPushValidAsync(pushPayload));
-            task.Wait();
-            return task.Result;
+            return IsPushValid(body);
         }
 
         /// <summary>
         /// <see cref="GetCIdList(int?, string)"/>
+        /// 获取 CId（推送的唯一标识符） 列表。
+        /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push/#cid"/>
         /// </summary>
-        public async Task<HttpResponse> GetCIdListAsync(int? count, string type)
+        /// <param name="count">不传默认为 1。范围为[1, 1000]</param>
+        /// <param name="type">CId 的类型。取值："push" (默认) 或 "schedule"</param>
+        public HttpResponse GetCIdList(int? count, string type)
         {
             if (count != null && count < 1 && count > 1000)
                 throw new ArgumentOutOfRangeException(nameof(count));
@@ -129,22 +126,13 @@ namespace Jiguang.JPush
                     url += ("&type=" + type);
             }
 
-            HttpResponseMessage msg = await HttpClient.GetAsync(url).ConfigureAwait(false);
-            var content = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var msgTask = HttpClient.GetAsync(url);
+            msgTask.Wait();
+            var msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            var content = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, content);
         }
 
-        /// <summary>
-        /// 获取 CId（推送的唯一标识符） 列表。
-        /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push/#cid"/>
-        /// </summary>
-        /// <param name="count">不传默认为 1。范围为[1, 1000]</param>
-        /// <param name="type">CId 的类型。取值："push" (默认) 或 "schedule"</param>
-        public HttpResponse GetCIdList(int? count, string type)
-        {
-            Task<HttpResponse> task = Task.Run(() => GetCIdListAsync(count, type));
-            task.Wait();
-            return task.Result;
-        }
     }
 }

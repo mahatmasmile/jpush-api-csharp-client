@@ -18,22 +18,30 @@ namespace Jiguang.JPush
         ///     自己构造的请求 json 字符串。
         ///     <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_push_schedule/#schedule"/>
         /// </param>
-        public async Task<HttpResponse> CreateScheduleTaskAsync(string json)
+        public HttpResponse CreateScheduleTask(string json)
         {
             if (string.IsNullOrEmpty(json))
                 throw new ArgumentNullException(nameof(json));
 
             var url = BASE_URL + "/v3/schedules";
             HttpContent requestContent = new StringContent(json, Encoding.UTF8);
-            HttpResponseMessage msg = await JPushClient.HttpClient.PostAsync(url, requestContent).ConfigureAwait(false);
-            string responseContent = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var msgTask = JPushClient.HttpClient.PostAsync(url, requestContent);
+            msgTask.Wait();
+            var msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            string responseContent = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, responseContent);
         }
 
         /// <summary>
         /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_push_schedule/#_4"/>
+        /// 创建单次定时任务。
         /// </summary>
-        public async Task<HttpResponse> CreateSingleScheduleTaskAsync(string name, PushPayload pushPayload, string triggeringTime)
+        /// <param name="name">表示 schedule 任务的名字，由 schedule-api 在用户成功创建 schedule 任务后返回，不得超过 255 字节，由汉字、字母、数字、下划线组成。</param>
+        /// <param name="pushPayload">推送对象</param>
+        /// <param name="trigger">触发器</param>
+        public HttpResponse CreateSingleScheduleTask(string name, PushPayload pushPayload, string triggeringTime)
         {
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentNullException(nameof(name));
@@ -57,27 +65,18 @@ namespace Jiguang.JPush
                     }
                 }
             };
-
-            return await CreateScheduleTaskAsync(requestJson.ToString()).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// 创建单次定时任务。
-        /// </summary>
-        /// <param name="name">表示 schedule 任务的名字，由 schedule-api 在用户成功创建 schedule 任务后返回，不得超过 255 字节，由汉字、字母、数字、下划线组成。</param>
-        /// <param name="pushPayload">推送对象</param>
-        /// <param name="trigger">触发器</param>
-        public HttpResponse CreateSingleScheduleTask(string name, PushPayload pushPayload, string triggeringTime)
-        {
-            Task<HttpResponse> task = Task.Run(() => CreateSingleScheduleTaskAsync(name, pushPayload, triggeringTime));
-            task.Wait();
-            return task.Result;
+            return CreateScheduleTask(requestJson.ToString());
         }
 
         /// <summary>
         /// <see cref="CreatePeriodicalScheduleTask(string, PushPayload, Trigger)"/>
+        /// 创建会在一段时间内重复执行的定期任务。
+        /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_push_schedule/#_4"/>
         /// </summary>
-        public async Task<HttpResponse> CreatePeriodicalScheduleTaskAsync(string name, PushPayload pushPayload, Trigger trigger)
+        /// <param name="name">表示 schedule 任务的名字，由 schedule-api 在用户成功创建 schedule 任务后返回，不得超过 255 字节，由汉字、字母、数字、下划线组成。</param>
+        /// <param name="pushPayload">推送对象</param>
+        /// <param name="trigger">触发器</param>
+        public HttpResponse CreatePeriodicalScheduleTask(string name, PushPayload pushPayload, Trigger trigger)
         {
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentNullException(nameof(name));
@@ -98,39 +97,12 @@ namespace Jiguang.JPush
                     ["periodical"] = JObject.FromObject(trigger)
                 }
             };
-
-            return await CreateScheduleTaskAsync(requestJson.ToString()).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// 创建会在一段时间内重复执行的定期任务。
-        /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_push_schedule/#_4"/>
-        /// </summary>
-        /// <param name="name">表示 schedule 任务的名字，由 schedule-api 在用户成功创建 schedule 任务后返回，不得超过 255 字节，由汉字、字母、数字、下划线组成。</param>
-        /// <param name="pushPayload">推送对象</param>
-        /// <param name="trigger">触发器</param>
-        public HttpResponse CreatePeriodicalScheduleTask(string name, PushPayload pushPayload, Trigger trigger)
-        {
-            Task<HttpResponse> task = Task.Run(() => CreatePeriodicalScheduleTaskAsync(name, pushPayload, trigger));
-            task.Wait();
-            return task.Result;
+ 
+            return CreateScheduleTask(requestJson.ToString());
         }
 
         /// <summary>
         /// <see cref="GetValidScheduleTasks(int)"/>
-        /// </summary>
-        public async Task<HttpResponse> GetValidScheduleTasksAsync(int page = 1)
-        {
-            if (page <= 0)
-                throw new ArgumentNullException(nameof(page));
-
-            var url = BASE_URL + "/v3/schedules?page=" + page;
-            HttpResponseMessage msg = await JPushClient.HttpClient.GetAsync(url).ConfigureAwait(false);
-            string responseContent = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
-            return new HttpResponse(msg.StatusCode, msg.Headers, responseContent);
-        }
-
-        /// <summary>
         /// 获取有效的定时任务列表。
         /// </summary>
         /// <param name="page">
@@ -141,37 +113,40 @@ namespace Jiguang.JPush
         /// </param>
         public HttpResponse GetValidScheduleTasks(int page = 1)
         {
-            Task<HttpResponse> task = Task.Run(() => GetValidScheduleTasksAsync(page));
-            task.Wait();
-            return task.Result;
-        }
+            if (page <= 0)
+                throw new ArgumentNullException(nameof(page));
 
-        /// <summary>
-        /// <see cref="GetScheduleTask(string)"/>
-        /// </summary>
-        public async Task<HttpResponse> GetScheduleTaskAsync(string scheduleId)
-        {
-            if (string.IsNullOrEmpty(scheduleId))
-                throw new ArgumentNullException(nameof(scheduleId));
-
-            var url = BASE_URL + "/v3/schedules/" + scheduleId;
-            HttpResponseMessage msg = await JPushClient.HttpClient.GetAsync(url).ConfigureAwait(false);
-            string responseContent = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var url = BASE_URL + "/v3/schedules?page=" + page;
+            var msgTask = JPushClient.HttpClient.GetAsync(url);
+            msgTask.Wait();
+            var msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            string responseContent = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, responseContent);
         }
 
         /// <summary>
+        /// <see cref="GetScheduleTask(string)"/>
         /// 获取指定的定时任务。
         /// </summary>
         /// <param name="scheduleId">定时任务 ID。在创建定时任务时会返回。</param>
         public HttpResponse GetScheduleTask(string scheduleId)
         {
-            Task<HttpResponse> task = Task.Run(() => GetScheduleTaskAsync(scheduleId));
-            task.Wait();
-            return task.Result;
+            if (string.IsNullOrEmpty(scheduleId))
+                throw new ArgumentNullException(nameof(scheduleId));
+
+            var url = BASE_URL + "/v3/schedules/" + scheduleId;
+            var msgTask = JPushClient.HttpClient.GetAsync(url);
+            msgTask.Wait();
+            var msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            string responseContent = contentTask.Result;
+            return new HttpResponse(msg.StatusCode, msg.Headers, responseContent);
         }
 
-        public async Task<HttpResponse> UpdateScheduleTaskAsync(string scheduleId, string json)
+        public HttpResponse UpdateScheduleTask(string scheduleId, string json)
         {
             if (string.IsNullOrEmpty(scheduleId))
                 throw new ArgumentNullException(nameof(scheduleId));
@@ -181,15 +156,25 @@ namespace Jiguang.JPush
 
             var url = BASE_URL + "/v3/schedules/" + scheduleId;
             HttpContent requestContent = new StringContent(json, Encoding.UTF8);
-            HttpResponseMessage msg = await JPushClient.HttpClient.PutAsync(url, requestContent).ConfigureAwait(false);
-            string responseContent = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var msgTask = JPushClient.HttpClient.PutAsync(url, requestContent);
+            msgTask.Wait();
+            var msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            string responseContent = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, responseContent);
         }
 
         /// <summary>
         /// <see cref="UpdateSingleScheduleTask(string, string, bool?, string, PushPayload)"/>
+        /// 更新单次定时任务。
         /// </summary>
-        public async Task<HttpResponse> UpdateSingleScheduleTaskAsync(string scheduleId, string name, bool? enabled,
+        /// <param name="scheduleId">任务 ID</param>
+        /// <param name="name">任务名称，为 null 表示不更新。</param>
+        /// <param name="enabled">是否可用，为 null 表示不更新。</param>
+        /// <param name="triggeringTime">触发时间，类似 "2017-08-03 12:00:00"，为 null 表示不更新。</param>
+        /// <param name="pushPayload">推送内容，为 null 表示不更新。</param>
+        public HttpResponse UpdateSingleScheduleTask(string scheduleId, string name, bool? enabled,
             string triggeringTime, PushPayload pushPayload)
         {
             if (string.IsNullOrEmpty(scheduleId))
@@ -219,28 +204,20 @@ namespace Jiguang.JPush
                 json["push"] = JObject.FromObject(pushPayload);
             }
 
-            return await UpdateScheduleTaskAsync(scheduleId, json.ToString()).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// 更新单次定时任务。
-        /// </summary>
-        /// <param name="scheduleId">任务 ID</param>
-        /// <param name="name">任务名称，为 null 表示不更新。</param>
-        /// <param name="enabled">是否可用，为 null 表示不更新。</param>
-        /// <param name="triggeringTime">触发时间，类似 "2017-08-03 12:00:00"，为 null 表示不更新。</param>
-        /// <param name="pushPayload">推送内容，为 null 表示不更新。</param>
-        public HttpResponse UpdateSingleScheduleTask(string scheduleId, string name, bool? enabled, string triggeringTime, PushPayload pushPayload)
-        {
-            Task<HttpResponse> task = Task.Run(() => UpdateSingleScheduleTaskAsync(scheduleId, name, enabled, triggeringTime, pushPayload));
-            task.Wait();
-            return task.Result;
+            return UpdateScheduleTask(scheduleId, json.ToString());
         }
 
         /// <summary>
         /// <see cref="UpdatePeriodicalScheduleTask(string, string, bool?, Trigger, PushPayload)"/>
+        /// 更新会重复执行的定时任务。
+        /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_push_schedule/#schedule_2"/>
         /// </summary>
-        public async Task<HttpResponse> UpdatePeriodicalScheduleTaskAsync(string scheduleId, string name, bool? enabled,
+        /// <param name="scheduleId">任务 ID</param>
+        /// <param name="name">任务名称，为 null 表示不更新。</param>
+        /// <param name="enabled">是否可用，为 null 表示不更新。</param>
+        /// <param name="trigger">触发器对象，为 null 表示不更新。</param>
+        /// <param name="pushPayload">推送内容，为 null 表示不更新。</param>
+        public HttpResponse UpdatePeriodicalScheduleTask(string scheduleId, string name, bool? enabled,
             Trigger trigger, PushPayload pushPayload)
         {
             if (string.IsNullOrEmpty(scheduleId))
@@ -266,50 +243,29 @@ namespace Jiguang.JPush
             {
                 json["push"] = JObject.FromObject(pushPayload);
             }
-
-            return await UpdateScheduleTaskAsync(scheduleId, json.ToString()).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// 更新会重复执行的定时任务。
-        /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_push_schedule/#schedule_2"/>
-        /// </summary>
-        /// <param name="scheduleId">任务 ID</param>
-        /// <param name="name">任务名称，为 null 表示不更新。</param>
-        /// <param name="enabled">是否可用，为 null 表示不更新。</param>
-        /// <param name="trigger">触发器对象，为 null 表示不更新。</param>
-        /// <param name="pushPayload">推送内容，为 null 表示不更新。</param>
-        public HttpResponse UpdatePeriodicalScheduleTask(string scheduleId, string name, bool? enabled, Trigger trigger, PushPayload pushPayload)
-        {
-            Task<HttpResponse> task = Task.Run(() => UpdatePeriodicalScheduleTaskAsync(scheduleId, name, enabled, trigger, pushPayload));
-            task.Wait();
-            return task.Result;
+            return UpdateScheduleTask(scheduleId, json.ToString());
         }
 
         /// <summary>
         /// <see cref="DeleteScheduleTask(string)"/>
-        /// </summary>
-        public async Task<HttpResponse> DeleteScheduleTaskAsync(string scheduleId)
-        {
-            if (string.IsNullOrEmpty(scheduleId))
-                throw new ArgumentNullException(nameof(scheduleId));
-
-            var url = BASE_URL + "/v3/schedules/" + scheduleId;
-            HttpResponseMessage msg = await JPushClient.HttpClient.DeleteAsync(url).ConfigureAwait(false);
-            string responseContent = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
-            return new HttpResponse(msg.StatusCode, msg.Headers, responseContent);
-        }
-
-        /// <summary>
         /// 删除指定的定时任务。
         /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_push_schedule/#schedule_3"/>
         /// </summary>
         /// <param name="scheduleId">已创建的 schedule 任务的 id。如果 scheduleId 不合法，即不是有效的 uuid，则返回 404。</param>
         public HttpResponse DeleteScheduleTask(string scheduleId)
         {
-            Task<HttpResponse> task = Task.Run(() => DeleteScheduleTaskAsync(scheduleId));
-            task.Wait();
-            return task.Result;
+            if (string.IsNullOrEmpty(scheduleId))
+                throw new ArgumentNullException(nameof(scheduleId));
+
+            var url = BASE_URL + "/v3/schedules/" + scheduleId;
+            var msgTask = JPushClient.HttpClient.DeleteAsync(url);
+            msgTask.Wait();
+            var msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            string responseContent = contentTask.Result;
+            return new HttpResponse(msg.StatusCode, msg.Headers, responseContent);
         }
+
     }
 }

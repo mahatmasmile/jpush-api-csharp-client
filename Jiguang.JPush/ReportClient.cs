@@ -14,34 +14,34 @@ namespace Jiguang.JPush
 
         /// <summary>
         /// <see cref="GetMessageReport(List{string})"/>
+        /// 获取指定 msg_id 的消息送达统计数据。
         /// </summary>
-        public async Task<HttpResponse> GetMessageReportAsync(List<string> msgIdList)
+        /// <param name="msgIdList">消息的 msg_id 列表，每次最多支持 100 个。</param>
+        public HttpResponse GetMessageReport(List<string> msgIdList)
         {
             if (msgIdList == null)
                 throw new ArgumentNullException(nameof(msgIdList));
 
             var msgIds = string.Join(",", msgIdList);
             var url = BASE_URL + "received?msg_ids=" + msgIds;
-            HttpResponseMessage msg = await JPushClient.HttpClient.GetAsync(url).ConfigureAwait(false);
-            var content = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var msgTask = JPushClient.HttpClient.GetAsync(url);
+            msgTask.Wait();
+            HttpResponseMessage msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            var content = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, content);
         }
 
         /// <summary>
-        /// 获取指定 msg_id 的消息送达统计数据。
-        /// </summary>
-        /// <param name="msgIdList">消息的 msg_id 列表，每次最多支持 100 个。</param>
-        public HttpResponse GetMessageReport(List<string> msgIdList)
-        {
-            Task<HttpResponse> task = Task.Run(() => GetMessageReportAsync(msgIdList));
-            task.Wait();
-            return task.Result;
-        }
-
-        /// <summary>
         /// <see cref="GetMessageSendStatus(string, List{string}, string)"/>
+        /// 查询指定消息的送达状态。
+        /// <para><see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_report/#_7"/></para>
         /// </summary>
-        public async Task<HttpResponse> GetMessageSendStatusAsync(string msgId, List<string> registrationIdList, string data)
+        /// <param name="msgId">待查询消息的 Message Id。</param>
+        /// <param name="registrationIdList">收到消息设备的 Registration Id 列表。</param>
+        /// <param name="data">待查询日期，格式为 yyyy-MM-dd。如果传 null，则默认为当天。</param>
+        public HttpResponse GetMessageSendStatus(string msgId, List<string> registrationIdList, string data)
         {
             if (string.IsNullOrEmpty(msgId))
                 throw new ArgumentNullException(nameof(msgId));
@@ -61,72 +61,39 @@ namespace Jiguang.JPush
             var url = BASE_URL + "/status/message";
             var httpContent = new StringContent(body.ToString(), Encoding.UTF8);
 
-            HttpResponseMessage msg = await JPushClient.HttpClient.PostAsync(url, httpContent).ConfigureAwait(false);
-            var content = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var msgTask = JPushClient.HttpClient.PostAsync(url, httpContent);
+            msgTask.Wait();
+            HttpResponseMessage msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            var content = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, content);
         }
 
         /// <summary>
-        /// 查询指定消息的送达状态。
-        /// <para><see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_report/#_7"/></para>
-        /// </summary>
-        /// <param name="msgId">待查询消息的 Message Id。</param>
-        /// <param name="registrationIdList">收到消息设备的 Registration Id 列表。</param>
-        /// <param name="data">待查询日期，格式为 yyyy-MM-dd。如果传 null，则默认为当天。</param>
-        public HttpResponse GetMessageSendStatus(string msgId, List<string> registrationIdList, string data)
-        {
-            Task<HttpResponse> task = Task.Run(() => GetMessageSendStatusAsync(msgId, registrationIdList, data));
-            task.Wait();
-            return task.Result;
-        }
-
-        /// <summary>
         /// <see cref="GetMessageDetailReport(List{string})"/>
+        /// 提供包括点击数等更详细的统计数据（VIP only）。
         /// </summary>
-        public async Task<HttpResponse> GetMessageDetailReportAsync(List<string> msgIdList)
+        /// <param name="msgIdList">消息的 msg_id 列表，每次最多支持 100 个。</param>
+        public HttpResponse GetMessageDetailReport(List<string> msgIdList)
         {
             if (msgIdList == null)
                 throw new ArgumentNullException(nameof(msgIdList));
 
             var msgIds = string.Join(",", msgIdList);
             var url = BASE_URL + "messages?msg_ids=" + msgIds;
-            HttpResponseMessage msg = await JPushClient.HttpClient.GetAsync(url).ConfigureAwait(false);
-            var content = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var msgTask = JPushClient.HttpClient.GetAsync(url);
+            msgTask.Wait();
+            HttpResponseMessage msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            var content = contentTask.Result;
             return new HttpResponse(msg.StatusCode, msg.Headers, content);
         }
 
-        /// <summary>
-        /// 提供包括点击数等更详细的统计数据（VIP only）。
-        /// </summary>
-        /// <param name="msgIdList">消息的 msg_id 列表，每次最多支持 100 个。</param>
-        public HttpResponse GetMessageDetailReport(List<string> msgIdList)
-        {
-            Task<HttpResponse> task = Task.Run(() => GetMessageDetailReportAsync(msgIdList));
-            task.Wait();
-            return task.Result;
-        }
 
         /// <summary>
         /// <see cref="GetUserReport(string, string, int)"/>
-        /// </summary>
-        public async Task<HttpResponse> GetUserReportAsync(string timeUnit, string startTime, int duration)
-        {
-            if (string.IsNullOrEmpty(timeUnit))
-                throw new ArgumentNullException(nameof(timeUnit));
-
-            if (startTime == null)
-                throw new ArgumentNullException(nameof(startTime));
-
-            if (duration <= 0)
-                throw new ArgumentOutOfRangeException(nameof(duration));
-
-            var url = BASE_URL + "users?time_unit=" + timeUnit + "&start=" + startTime + "&duration=" + duration;
-            HttpResponseMessage msg = await JPushClient.HttpClient.GetAsync(url).ConfigureAwait(false);
-            var content = await msg.Content.ReadAsStringAsync().ConfigureAwait(false);
-            return new HttpResponse(msg.StatusCode, msg.Headers, content);
-        }
-
-        /// <summary>
         /// 提供近2个月内某时间段的用户相关统计数据：新增用户、在线用户、活跃用户（VIP only）。
         /// <see cref="https://docs.jiguang.cn/jpush/server/push/rest_api_v3_report/#vip_1"/>
         /// </summary>
@@ -144,9 +111,25 @@ namespace Jiguang.JPush
         /// </param>
         public HttpResponse GetUserReport(string timeUnit, string startTime, int duration)
         {
-            Task<HttpResponse> task = Task.Run(() => GetUserReportAsync(timeUnit, startTime, duration));
-            task.Wait();
-            return task.Result;
+            if (string.IsNullOrEmpty(timeUnit))
+                throw new ArgumentNullException(nameof(timeUnit));
+
+            if (startTime == null)
+                throw new ArgumentNullException(nameof(startTime));
+
+            if (duration <= 0)
+                throw new ArgumentOutOfRangeException(nameof(duration));
+
+            var url = BASE_URL + "users?time_unit=" + timeUnit + "&start=" + startTime + "&duration=" + duration;
+            var msgTask = JPushClient.HttpClient.GetAsync(url);
+            msgTask.Wait();
+            HttpResponseMessage msg = msgTask.Result;
+            var contentTask = msg.Content.ReadAsStringAsync();
+            contentTask.Wait();
+            var content = contentTask.Result;
+            return new HttpResponse(msg.StatusCode, msg.Headers, content);
         }
+
+
     }
 }
